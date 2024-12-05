@@ -6,14 +6,18 @@ from datetime import datetime    #we will need this for the backtesting
 from dotenv import load_dotenv
 import os 
 import pandas as pd 
+import numpy as np
+import cProfile   #for performance 
 #from alpaca.trading.client import TradingClient
 
 
-from strategies.fundamental_analysis import main
+from strategies.fundamental_analysis import  data_fetcher , fundamental_analyzer
 
 
 
-#from alpaca_trade_api import REST 
+
+
+#from alpaca_trade_api import REST  
 #from timedelta import Timedelta 
 #from finbert_utils import estimate_sentiment
 load_dotenv()
@@ -37,20 +41,36 @@ class trading_strategy (Strategy):
 
     
     #instance method (this will run once )
-    def initialize(self ,symbol:str = "SPY"  , cash_at_risk:float = .5): 
+    def initialize(self ,cash_at_risk:float = .5): 
       
-        self.symbol = symbol
-        self.sleep_time = "24H"
-        self.last_trade = None
-        self.cash_at_risk = cash_at_risk 
-        self.filtered_df = pd.read_csv('filtered_sp500_financial_data_2024-11-29_22-12-26.csv')
         
+        self.sleep_time = "24H"
+        self.last_trade = {}
+        self.cash_at_risk = cash_at_risk 
+        self.filtered_df = None
+        #use dict 
+        self.symbol_to_score = {}
+
+    def load_filtered_data(self):
+        fetcher = data_fetcher()
+        tickers = fetcher.fetch_sp500_ticker()
+        sp00_df = fetcher.fetch_sp500_fdata(tickers)
+        analyzer = fundamental_analyzer(sp00_df)
+        self.filtered_df = analyzer.perform_fundamental_analysis()
+        #debugging
+        print(f'loaded Data :\n {self.filtered_df.head()}')
+        print(f"Number of rows in filtered data: {len(self.filtered_df)}")
+        print(f"Missing values in filtered data:\n{self.filtered_df.isnull().sum()}")
+        print(f"Data types of filtered data:\n{self.filtered_df.dtypes}")
+
+        #use dict more effiecnet than the set or list 
+        self.Symbol_to_score = dict(zip(self.filtered_df['ticker'], self.filtered_df['score']))
 
         #method how many cash we want to place for each trade
-    def postion_sizing (self) : 
+    def postion_sizing (self , symbol) : 
 
-        cash = self.get_cash() 
-        last_price = self.get_last_price(self.symbol)
+        cash = self.get_cash()   # cash in the account 
+        last_price = self.get_last_price(symbol)
         quantity = round(cash * self.cash_at_risk / last_price,0) 
         return cash, last_price, quantity
     
@@ -58,38 +78,63 @@ class trading_strategy (Strategy):
         stop_loss_amm = (self.last_price ) * (1 - self.cash_at_risk)
         return stop_loss_amm
     #it still need to be connected to the iternation 
-    def perform_fundamental_analysis(self):
-        try : 
-            self.filtered_df = main()
-            if self.filtered_df is None or self.filtered_df.empty : 
-                raise ValueError('filtered data is empty ')
-            print('fundamental analysis performed successfully')
 
-        except : 
-            print('error in fa')
+
+    def create_order (self , symbol , quantity , price , side , type = 'market'):
+        order = {
+            'symbol': symbol,
+            'quantity': quantity,
+            'price': price,
+            'side': side,
+            'type': type
             
+        }
+        return order
+    def submit_order(self , order):
+        print(f'order submitted : {order}')
+
+    def get_fundamental_score (self , symbol):
+       return self.symbol_to_score.get(symbol , None)
         
         
 #####################try to fix the overlooping 
 
     #run every time we get new data
     def on_trading_iteration(self):
-        cash, last_price, quantity  = self.postion_sizing()
-        # inorder not to buy when we dont have cash
-        if cash > last_price : 
-            if self.symbol in self.filtered_df['ticker'].values:
-                #if for the first trade 
-                if self.last_trade == None : #####fix this it has to check just once 
-                    order = self.create_order(
-                        self.symbol,
-                        quantity,
-                        10, 
-                        'buy',
-                        type = 'market'
-                        )
+        #cProfile.run('self.on_trading_iteration()', 'profile_results.prof')
+        if self.filtered_df is None  or self.filtered_df.empty: 
+            print("Filtered data is empty or not loaded. Loading data now...")
+            self.load_filtered_data()
+
+        print(f"Filtered Symbols: {list(self.symbol_to_score.keys())}")   # debugging
+
+        for symbol in self.symbol_to_score : 
+            print(f"Processing symbol: {symbol}") #debugging
+
+            cash, last_price, quantity  = self.postion_sizing(symbol)
+            fundamental_score = self.get_fundamental_score(symbol)
+            print(f"Fundamental score for {symbol}: {fundamental_score}")  # Debugging
+
+            if cash > last_price and self.last_trade.get(symbol) is None:
+                if fundamental_score is not None and fundamental_score >= 7 : 
+                    print(f"Executing buy for {symbol}") #debugging
+                    order = self.create_order(symbol , quantity , last_price , 'buy' , type = 'market')
                     self.submit_order(order)
-                    self.last_trade = 'buy '
-    
+                    self.last_trade[symbol] = 'buy'
+
+                    print(f"Executed buy order for {symbol} with quantity {quantity} at price {last_price}")
+                else:
+                    print(f"Skipping {symbol} due to technical conditions.")
+            
+                
+            elif symbol in self.last_trade and self.last_trade[symbol] == 'buy':
+                if fundamental_score is not None and fundamental_score < 5:  # For example, sell if the fundamental score drops below 5
+                    order = self.create_order(symbol,quantity,last_price, 'sell',type='market')
+                    self.submit_order(order)
+                    self.last_trade[symbol] = 'sell'
+                    print(f"Executed sell order for {symbol} due to low fundamental score.")
+              
+                   
 
     def buy ():
         pass
@@ -112,19 +157,18 @@ backtesting_start_date = datetime(2022 ,11 , 15 )
 backtesting_end_date = datetime(2024,11 ,23)
 broker = Alpaca(ALPACA_CREDS)
 strategy= trading_strategy(name = 'mlstrat' , broker= broker , 
-                           parameters = {'symbol' : 'SPY' ,
-                                          'cash_at_risk' :.5  })
+                           parameters = {'cash_at_risk' :.5  })
 
-
+print(f"Backtest Start Date: {backtesting_start_date}") #debugging 
+print(f"Backtest End Date: {backtesting_end_date}") # debugging
 #run the backtesting
 strategy.backtest(
     YahooDataBacktesting , 
     backtesting_start_date , 
     backtesting_end_date , 
-    parameters = {'symbol' : 'SPY', 
+    parameters = {
                   'cash_at_risk' :.5 }   #higher cash at risk men more cash per trade 
 )
-
 
 
 # Yes, it is possible that the conditional statements in this section could be contributing to performance issues, especially if they are being executed repeatedly in each iteration. Let's break it down:
