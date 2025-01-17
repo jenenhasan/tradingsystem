@@ -24,39 +24,35 @@ git clone https://github.com/YourUsername/automated-trading-system.git
 cd automated-trading-system
 2. Install Dependencies
 Make sure you have Python 3.8+ installed. Then, create a virtual environment (optional but recommended) and install the required dependencies:
-
-bash
-Copy
-Edit
 python3 -m venv venv
 source venv/bin/activate  # On Windows, use 'venv\Scripts\activate'
 pip install -r requirements.txt
+
 3. Set Up API Keys
 The project requires the following API keys:
-
 Alpaca API: Sign up for an Alpaca account at Alpaca Markets and generate your API keys.
 Yahoo Finance API: Sign up for a Yahoo Finance API key (if necessary).
-After obtaining the keys, create a .env file in the root directory of the project and add the following environment variables:
 
-makefile
-Copy
-Edit
+After obtaining the keys, create a .env file in the root directory of the project and add the following environment variables:
 ALPACA_API_KEY=your_alpaca_key
 ALPACA_SECRET_KEY=your_alpaca_secret
 YAHOO_FINANCE_API_KEY=your_yahoo_finance_api_key
-4. Run the Application
+
+4. for sentiment analysis
+   1. Install dependencies (torch, transformers, pandas).
+   2. Set Up the Sentiment Analysis Model
+   3. Setting up GPU Support(optional)
+      1. Install CUDA and cuDNN
+      2. Install PyTorch with CUDA Support
+      3. Verify GPU Availability
+   
+
+6.  Run the Application
 Once you've set up the API keys, you can run the bot and start automated trading:
 
-bash
-Copy
-Edit
-python main.py
-5. Optional: Backtest the Strategy
+ 7. optional: Backtest the Strategy
 If you'd like to test the strategy using historical data before executing live trades, use the backtesting script:
 
-bash
-Copy
-Edit
 python backtest.py
 Technologies Used
 Python 3.8+
