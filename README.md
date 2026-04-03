@@ -64,6 +64,9 @@ trading-bot/
 ├── requirements.txt                # All dependencies
 ```
 
+> **Note:** `filtered.csv` and `scored_file.csv` are sample outputs 
+> included so you can see the system's results without running the 
+> full pipeline. `tickers.csv` is the S&P 500 ticker list used as input.
 ---
 
 ## 🚀 Getting Started
