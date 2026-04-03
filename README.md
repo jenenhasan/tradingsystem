@@ -77,7 +77,7 @@ trading-bot/
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/trading-bot.git
+git clone https://github.com/jenenhasan/trading-bot.git
 cd trading-bot
 pip install -r requirements.txt
 ```
