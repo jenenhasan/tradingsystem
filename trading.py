@@ -1,37 +1,3 @@
-"""
-trading.py — Professional-Grade Paper Trading + Backtest Bot
-=============================================================
-Combines FinBERT sentiment + fundamental scoring to trade S&P 500 stocks
-via Alpaca. Supports both live paper trading and historical backtesting.
-
-Usage:
-    python trading.py              # paper trading (default)
-    python trading.py paper        # paper trading (explicit)
-    python trading.py backtest     # backtest mode
-
-Professional fixes applied (beyond original critical fixes):
-    1.  Hard stop-loss per position (2% default, configurable)
-    2.  Portfolio drawdown circuit breaker (halt trading if DD > 15%)
-    3.  Persistent structured logging to rotating log files (JSON lines)
-    4.  Fundamental data cached per day — NOT reloaded every iteration
-    5.  Thread-safe state with threading.Lock()
-    6.  Exponential backoff retry wrapper for all external API calls
-    7.  Graceful shutdown handler (SIGINT / SIGTERM)
-    8.  Heartbeat thread — writes a timestamp every 60 s for monitoring
-    9.  Total portfolio exposure cap (max 80% of portfolio in equities)
-    10. Fill-price audit: logs expected vs. actual fill after order submit
-    11. Corrected logit-aggregation in sentiment (mean, not sum)
-    12. yfinance import guarded at startup; clear error if missing
-    13. Backtest survivorship filter uses proper S&P 500 historical membership
-    14. Environment variable validation with specific missing-var messages
-    15. All bare `except` replaced with typed exceptions + logged tracebacks
-    16. position_sizing() now enforces the portfolio exposure cap
-    17. sell logic also fires when stop-loss hit (price < entry * stop_mult)
-    18. Daily PnL summary printed at end of each trading day
-    19. Reconnection / session-reset on Alpaca REST errors
-    20. All magic numbers moved to named class constants
-"""
-
 import os
 import sys
 import time
