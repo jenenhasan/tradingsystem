@@ -60,18 +60,35 @@ class data_fetcher:
         exists from a previous successful run, so the bot doesn't crash on a
         temporary network issue.
         """
+        
+
+        #first check if the cache exist 
+        if os.path.exists('tickers.csv'):
+            tickers = list(np.loadtxt('tickers.csv' , dtype=str))
+            print(f"Loaded {len(tickers)} tickers from cached tickers.csv")
+            return tickers
         try:
             import requests
             url     = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
             headers = {"User-Agent": "Mozilla/5.0  (compatible; TradingBot/1.0; jenen@example.com)"}
-           # session = requests.Session()
             response = requests.get(url, headers=headers, timeout=10)
+
+
             if response.status_code != 200:
                 raise Exception(f"HTTP {response.status_code}")
-            #response.raise_for_status()
-            #import urllib
-            #req = urllib.request.Request(url, headers=headers)
-            tables  = pd.read_html(response.text)
+            import sys
+            import io
+            #note stderr is a stream for error message , warnings 
+            
+            old_stderr = sys.stderr  # save the real stderr
+            sys.stderr = io.StringIO()  # replace stderr with fake one  , io create in memory fake file anything written to it goes to buffer 
+
+            try : 
+                tables = pd.read_html(response.text)
+            finally : 
+                sys.stderr = old_stderr  # note dont forget this because otherwise if you got error it will dissapear 
+
+     
             df = None 
             for table in tables: 
                 if 'Symbol' in table.columns:
@@ -93,7 +110,21 @@ class data_fetcher:
             raise RuntimeError(
                 'cannot fetch s&p 500 tickers and no cached tickers.csv found '
             )
+        
+    # def supress_noise (self):
+    #     import sys
+    #     import io
+    #     old_stderr = sys.stderr
+    #     sys.stderr = io.StringIO() #save it to buffer file 
+    #     try : 
+    #         self.fetch_sp500_ticker()
+
+    #     finally :
+    #         sys.stderr = old_stderr
+        
             
+
+    
 
 
             
