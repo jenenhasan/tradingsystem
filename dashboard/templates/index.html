@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Bot Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f5f5f5; color: #1a1a1a; }
+  .navbar { background: #fff; border-bottom: 1px solid #e5e5e5; padding: 0 24px; display: flex; align-items: center; justify-content: space-between; height: 56px; }
+  .navbar h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .status { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #22c55e; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #22c55e; }
+  .nav-tabs { display: flex; gap: 4px; padding: 16px 24px 0; }
+  .tab { padding: 8px 16px; border-radius: 8px 8px 0 0; font-size: 13px; cursor: pointer; border: 1px solid transparent; background: transparent; color: #888; }
+  .tab.active { background: #fff; border-color: #e5e5e5; border-bottom-color: #fff; color: #1a56db; font-weight: 500; }
+  .content { background: #fff; margin: 0 24px; border: 1px solid #e5e5e5; border-top: none; border-radius: 0 0 12px 12px; padding: 24px; min-height: 400px; }
+  .page { display: none; }
+  .page.active { display: block; }
+  .metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 24px; }
+  .metric { background: #f9f9f9; border-radius: 10px; padding: 14px 16px; }
+  .metric-label { font-size: 11px; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+  .metric-value { font-size: 22px; font-weight: 600; color: #1a1a1a; }
+  .metric-value.up { color: #22c55e; }
+  .metric-value.down { color: #ef4444; }
+  .section-label { font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: left; padding: 8px 12px 8px 0; font-size: 11px; font-weight: 600; color: #888; text-transform: uppercase; letter-spacing: 0.04em; border-bottom: 1px solid #f0f0f0; }
+  td { padding: 10px 12px 10px 0; border-bottom: 1px solid #f9f9f9; color: #1a1a1a; }
+  tr:last-child td { border-bottom: none; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 6px; }
+  .badge-buy { background: #dcfce7; color: #166534; }
+  .badge-sell { background: #fee2e2; color: #991b1b; }
+  .badge-positive { background: #dcfce7; color: #166534; }
+  .badge-negative { background: #fee2e2; color: #991b1b; }
+  .badge-neutral { background: #f3f4f6; color: #6b7280; }
+  .badge-buy-signal { background: #dcfce7; color: #166534; }
+  .badge-sell-signal { background: #fee2e2; color: #991b1b; }
+  .badge-no-signal { background: #f3f4f6; color: #6b7280; }
+  .up { color: #22c55e; }
+  .down { color: #ef4444; }
+  .scanner-wrap { max-width: 480px; }
+  .input-row { display: flex; gap: 8px; margin-bottom: 20px; }
+  .input-row input { flex: 1; padding: 10px 14px; border: 1px solid #e5e5e5; border-radius: 8px; font-size: 14px; outline: none; }
+  .input-row input:focus { border-color: #1a56db; }
+  .input-row button { padding: 10px 20px; background: #1a56db; color: #fff; border: none; border-radius: 8px; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .input-row button:hover { background: #1446b8; }
+  .result-card { background: #f9f9f9; border-radius: 10px; padding: 16px 20px; display: none; }
+  .result-card.show { display: block; }
+  .result-header { margin-bottom: 16px; }
+  .result-ticker { font-size: 18px; font-weight: 600; }
+  .result-company { font-size: 12px; color: #888; margin-top: 2px; }
+  .result-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px; }
+  .result-row-label { color: #888; }
+  .bar-wrap { height: 6px; background: #e5e5e5; border-radius: 99px; margin: 4px 0 10px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 99px; transition: width 0.4s ease; }
+  .signal-positive { color: #22c55e; font-weight: 600; }
+  .signal-negative { color: #ef4444; font-weight: 600; }
+  .signal-none { color: #888; }
+  .loading { color: #888; font-size: 13px; padding: 12px 0; }
+  .error-msg { color: #ef4444; font-size: 13px; padding: 12px 0; }
+  .empty { color: #aaa; font-size: 13px; padding: 20px 0; text-align: center; }
+  .refresh-btn { font-size: 12px; color: #1a56db; cursor: pointer; background: none; border: none; padding: 0; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>Trading Bot Dashboard</h1>
+  <div class="status"><div class="status-dot"></div> Paper trading · Live</div>
+</div>
+
+<div class="nav-tabs">
+  <button class="tab active" onclick="showTab('overview', this)">Overview</button>
+  <button class="tab" onclick="showTab('positions', this)">Positions</button>
+  <button class="tab" onclick="showTab('trades', this)">Trade history</button>
+  <button class="tab" onclick="showTab('scanner', this)">Sentiment scanner</button>
+</div>
+
+<div class="content">
+
+  <div id="overview" class="page active">
+    <div class="metrics" id="overview-metrics">
+      <div class="metric"><div class="metric-label">Portfolio value</div><div class="metric-value" id="m-value">—</div></div>
+      <div class="metric"><div class="metric-label">Cash available</div><div class="metric-value" id="m-cash">—</div></div>
+      <div class="metric"><div class="metric-label">Today's P&L</div><div class="metric-value" id="m-pnl">—</div></div>
+      <div class="metric"><div class="metric-label">Open positions</div><div class="metric-value" id="m-positions">—</div></div>
+      <div class="metric"><div class="metric-label">Trades today</div><div class="metric-value" id="m-trades">—</div></div>
+      <div class="metric"><div class="metric-label">Equity exposure</div><div class="metric-value" id="m-exposure">—</div></div>
+    </div>
+    <div class="section-label">Recent activity <button class="refresh-btn" onclick="loadOverview()">↻ Refresh</button></div>
+    <table>
+      <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>Price</th><th>Qty</th></tr></thead>
+      <tbody id="recent-trades"><tr><td colspan="5" class="empty">No trades yet</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="positions" class="page">
+    <div class="section-label">Open positions <button class="refresh-btn" onclick="loadPositions()">↻ Refresh</button></div>
+    <table>
+      <thead><tr><th>Symbol</th><th>Qty</th><th>Entry</th><th>Current</th><th>P&L</th><th>Score</th><th>Sector</th></tr></thead>
+      <tbody id="positions-body"><tr><td colspan="7" class="empty">No open positions</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="trades" class="page">
+    <div class="section-label">Trade history <button class="refresh-btn" onclick="loadTrades()">↻ Refresh</button></div>
+    <table>
+      <thead><tr><th>Time</th><th>Symbol</th><th>Action</th><th>Price</th><th>Qty</th><th>Sentiment</th><th>Score</th></tr></thead>
+      <tbody id="trades-body"><tr><td colspan="7" class="empty">No trades recorded yet</td></tr></tbody>
+    </table>
+  </div>
+
+  <div id="scanner" class="page">
+    <div class="scanner-wrap">
+      <div class="section-label">Sentiment scanner</div>
+      <div class="input-row">
+        <input type="text" id="ticker-input" placeholder="Enter ticker (e.g. AAPL)" onkeydown="if(event.key==='Enter') scanTicker()" />
+        <button onclick="scanTicker()">Scan</button>
+      </div>
+      <div class="result-card" id="result-card">
+        <div class="result-header">
+          <div class="result-ticker" id="r-ticker"></div>
+          <div class="result-company" id="r-company"></div>
+        </div>
+        <div class="result-row"><span class="result-row-label">Sentiment</span><span id="r-sentiment"></span></div>
+        <div class="bar-wrap"><div class="bar-fill" id="r-conf-bar"></div></div>
+        <div class="result-row"><span class="result-row-label">Confidence</span><span id="r-conf"></span></div>
+        <div class="bar-wrap" style="margin-top:8px"><div class="bar-fill" id="r-score-bar" style="background:#1a56db"></div></div>
+        <div class="result-row"><span class="result-row-label">Fundamental score</span><span id="r-score"></span></div>
+        <div class="result-row" style="margin-top:8px; padding-top:8px; border-top:1px solid #e5e5e5;">
+          <span class="result-row-label">Signal</span><span id="r-signal"></span>
+        </div>
+      </div>
+      <div class="loading" id="scan-loading" style="display:none">Scanning...</div>
+      <div class="error-msg" id="scan-error" style="display:none"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+function showTab(id, btn) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'overview') loadOverview();
+  if (id === 'positions') loadPositions();
+  if (id === 'trades') loadTrades();
+}
+
+function fmt(n) { return n != null ? '$' + parseFloat(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) : '—'; }
+function pct(n) { return n != null ? parseFloat(n).toFixed(1) + '%' : '—'; }
+
+async function loadOverview() {
+  try {
+    const res = await fetch('/api/overview');
+    const d = await res.json();
+    const s = d.snapshot || {};
+    document.getElementById('m-value').textContent = fmt(s.portfolio_value);
+    document.getElementById('m-cash').textContent = fmt(s.cash);
+    const pnl = d.pnl_today || 0;
+    const pnlEl = document.getElementById('m-pnl');
+    pnlEl.textContent = (pnl >= 0 ? '+' : '') + fmt(pnl);
+    pnlEl.className = 'metric-value ' + (pnl >= 0 ? 'up' : 'down');
+    document.getElementById('m-positions').textContent = s.open_positions ?? '—';
+    document.getElementById('m-trades').textContent = d.trades_today ?? '—';
+    document.getElementById('m-exposure').textContent = s.equity_exposure != null ? pct(s.equity_exposure * 100) : '—';
+    const tbody = document.getElementById('recent-trades');
+    if (!d.recent_trades || d.recent_trades.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="5" class="empty">No trades yet</td></tr>';
+    } else {
+      tbody.innerHTML = d.recent_trades.map(t => `
+        <tr>
+          <td>${t.time}</td>
+          <td><strong>${t.symbol}</strong></td>
+          <td><span class="badge badge-${t.action.toLowerCase()}">${t.action}</span></td>
+          <td>${fmt(t.price)}</td>
+          <td>${t.quantity}</td>
+        </tr>`).join('');
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function loadPositions() {
+  try {
+    const res = await fetch('/api/positions');
+    const data = await res.json();
+    const tbody = document.getElementById('positions-body');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No open positions</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(p => {
+      const pnl = p.pnl || 0;
+      return `<tr>
+        <td><strong>${p.symbol}</strong></td>
+        <td>${p.quantity}</td>
+        <td>${fmt(p.entry_price)}</td>
+        <td>${fmt(p.current_price)}</td>
+        <td class="${pnl >= 0 ? 'up' : 'down'}">${pnl >= 0 ? '+' : ''}${fmt(pnl)}</td>
+        <td>${p.fundamental_score ?? '—'}/10</td>
+        <td>${p.sector ?? '—'}</td>
+      </tr>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function loadTrades() {
+  try {
+    const res = await fetch('/api/trades');
+    const data = await res.json();
+    const tbody = document.getElementById('trades-body');
+    if (!data.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="empty">No trades recorded yet</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(t => `
+      <tr>
+        <td>${t.time}</td>
+        <td><strong>${t.symbol}</strong></td>
+        <td><span class="badge badge-${t.action.toLowerCase()}">${t.action}</span></td>
+        <td>${fmt(t.price)}</td>
+        <td>${t.quantity}</td>
+        <td><span class="badge badge-${(t.sentiment||'neutral').toLowerCase()}">${t.sentiment || 'neutral'} ${t.confidence ?? ''}%</span></td>
+        <td>${t.fundamental_score ?? '—'}/10</td>
+      </tr>`).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function scanTicker() {
+  const ticker = document.getElementById('ticker-input').value.trim().toUpperCase();
+  if (!ticker) return;
+  document.getElementById('result-card').classList.remove('show');
+  document.getElementById('scan-error').style.display = 'none';
+  document.getElementById('scan-loading').style.display = 'block';
+  try {
+    const res = await fetch(`/api/scan/${ticker}`);
+    const d = await res.json();
+    document.getElementById('scan-loading').style.display = 'none';
+    if (d.error) { document.getElementById('scan-error').textContent = d.error; document.getElementById('scan-error').style.display = 'block'; return; }
+    document.getElementById('r-ticker').textContent = d.ticker;
+    document.getElementById('r-company').textContent = d.company + ' · ' + d.sector;
+    document.getElementById('r-sentiment').innerHTML = `<span class="badge badge-${d.sentiment}">${d.sentiment}</span>`;
+    document.getElementById('r-conf').textContent = d.confidence + '%';
+    const barColor = d.sentiment === 'positive' ? '#22c55e' : d.sentiment === 'negative' ? '#ef4444' : '#9ca3af';
+    document.getElementById('r-conf-bar').style.cssText = `width:${d.confidence}%; background:${barColor}`;
+    document.getElementById('r-score').textContent = (d.fundamental_score ?? '—') + ' / 10';
+    document.getElementById('r-score-bar').style.width = ((d.fundamental_score ?? 0) * 10) + '%';
+    const signalEl = document.getElementById('r-signal');
+    signalEl.textContent = d.signal;
+    signalEl.className = d.signal === 'BUY signal' ? 'signal-positive' : d.signal === 'SELL signal' ? 'signal-negative' : 'signal-none';
+    document.getElementById('result-card').classList.add('show');
+  } catch(e) {
+    document.getElementById('scan-loading').style.display = 'none';
+    document.getElementById('scan-error').textContent = 'Failed to scan ticker. Is the bot running?';
+    document.getElementById('scan-error').style.display = 'block';
+  }
+}
+
+loadOverview();
+setInterval(loadOverview, 30000);
+</script>
+</body>
+</html>
