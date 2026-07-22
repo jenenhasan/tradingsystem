@@ -1,5 +1,5 @@
 """
-
+fetch_sp500.py
 ========================
 Ticker provider for S&P 500 stocks.
 
@@ -25,7 +25,7 @@ class SP500Fetcher:
     Minimal fetcher – only provides the S&P 500 ticker list.
     """
 
-    def fetch_sp500_ticker(self , limit: int = None ):
+    def fetch_sp500_ticker(self, limit: int = None):
         """
         Scrapes the S&P 500 ticker list from Wikipedia.
         Falls back to cached tickers.csv if the scrape fails.
@@ -34,10 +34,9 @@ class SP500Fetcher:
         if os.path.exists('tickers.csv'):
             tickers = list(np.loadtxt('tickers.csv', dtype=str))
             print(f"Loaded {len(tickers)} tickers from cached tickers.csv")
-            if limit: 
+            if limit:
                 return tickers[:limit]
             return tickers
-        
 
         try:
             url = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -67,7 +66,7 @@ class SP500Fetcher:
             tickers = df['Symbol'].tolist()
             np.savetxt('tickers.csv', tickers, fmt="%s")
             print(f"  ✓ Scraped {len(tickers)} tickers from Wikipedia")
-            if limit: 
+            if limit:
                 return tickers[:limit]
             return tickers
 
@@ -79,6 +78,3 @@ class SP500Fetcher:
             raise RuntimeError(
                 'Cannot fetch S&P 500 tickers and no cached tickers.csv found.'
             )
-        
-        
-        
