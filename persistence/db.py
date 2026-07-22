@@ -1,8 +1,19 @@
+"""
+persistence/db.py
+===================
+Raw Postgres connection helper — the one and only place a connection
+string gets built. Both `persistence/repository.py` (bot-side writes)
+and `dashboard/app.py` (read-only queries) import from here, so there is
+exactly one database, never a bot-writes-to-X / dashboard-reads-from-Y
+mismatch.
+"""
+
 import psycopg2
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
+
 
 def get_connection():
     return psycopg2.connect(
@@ -10,7 +21,7 @@ def get_connection():
         user=os.getenv("DB_USER"),
         password=os.getenv("DB_PASSWORD"),
         host=os.getenv("DB_HOST"),
-        port=os.getenv("DB_PORT")
+        port=os.getenv("DB_PORT"),
     )
 
 
